@@ -92,6 +92,12 @@ function App() {
     let result = ''
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
     
+    // 保存开始日期的完整格式 (YYYY-MM-DD 星期)
+    const startMonth = startDate.getMonth() + 1
+    const startDay = startDate.getDate()
+    const startWeekday = weekdays[startDate.getDay()]
+    const fullStartDate = `${startDate.getFullYear()}-${String(startMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')} ${startWeekday}`
+    
     for (let i = 0; i < 14; i++) {
       const currentDate = new Date(startDate)
       currentDate.setDate(startDate.getDate() + i)
@@ -100,10 +106,12 @@ function App() {
       const day = currentDate.getDate()
       const weekday = weekdays[currentDate.getDay()]
       
+      // 保存现有格式用于显示和复制
       result += `${month}-${day}${weekday}\n`
     }
     
-    setDateList(result)
+    // 将开始日期的完整格式保存在结果的最前面，用特殊标记分隔
+    setDateList(`FULL_START_DATE:${fullStartDate}\n${result}`)
   }
 
   // 生成14天的日期列表（基于用户输入）
@@ -122,8 +130,24 @@ function App() {
     setTimeout(() => {
       const selection = window.getSelection()
       if (selection && selection.toString().trim() !== '') {
-        // 自动复制选中的文本到剪贴板
-        navigator.clipboard.writeText(selection.toString())
+        // 获取选中的文本
+        let selectedText = selection.toString()
+        
+        // 如果选中的文本包含开始日期信息，移除它
+        if (selectedText.includes('开始日期:')) {
+          const lines = selectedText.split('\n')
+          // 过滤掉包含开始日期的行
+          selectedText = lines.filter(line => !line.includes('开始日期:')).join('\n')
+        }
+        
+        // 移除可能包含的 FULL_START_DATE 标记行
+        if (selectedText.includes('FULL_START_DATE:')) {
+          const lines = selectedText.split('\n')
+          selectedText = lines.filter(line => !line.startsWith('FULL_START_DATE:')).join('\n')
+        }
+        
+        // 自动复制处理后的文本到剪贴板
+        navigator.clipboard.writeText(selectedText)
           .then(() => {
             console.log('选中的文本已复制到剪贴板')
           })
@@ -141,7 +165,11 @@ function App() {
       return
     }
     
-    navigator.clipboard.writeText(dateList)
+    // 只复制月-日星期格式，不包含年份
+    const lines = dateList.split('\n').filter(line => line.trim() !== '' && !line.startsWith('FULL_START_DATE:'))
+    const displayText = lines.join('\n')
+    
+    navigator.clipboard.writeText(displayText)
       .then(() => {
         alert('已复制到剪贴板')
       })
@@ -215,17 +243,34 @@ function App() {
             }}
             onMouseUp={handleTextSelection}
           >
-            {dateList.split('\n').filter(line => line.trim() !== '').map((line, index) => (
-              <div 
-                key={index} 
-                style={{ 
-                  padding: '2px 0',
-                  userSelect: 'text'
-                }}
-              >
-                {line}
+            {/* 显示开始日期的完整格式 */}
+            {dateList.startsWith('FULL_START_DATE:') && (
+              <div style={{ 
+                fontWeight: 'bold', 
+                marginBottom: '10px', 
+                padding: '5px', 
+                backgroundColor: '#e0e0e0', 
+                borderRadius: '4px',
+                textAlign: 'center'
+              }}>
+                开始日期: {dateList.split('\n')[0].replace('FULL_START_DATE:', '')}
               </div>
-            ))}
+            )}
+            
+            {/* 可复制的日期列表 */}
+            <div>
+              {dateList.split('\n').filter(line => line.trim() !== '' && !line.startsWith('FULL_START_DATE:')).map((line, index) => (
+                <div 
+                  key={index} 
+                  style={{ 
+                    padding: '2px 0',
+                    userSelect: 'text'
+                  }}
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
