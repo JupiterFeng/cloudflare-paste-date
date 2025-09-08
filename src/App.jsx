@@ -158,7 +158,7 @@ function App() {
     }, 100)
   }
 
-  // 复制到剪贴板
+  // 复制到剪贴板（带格式）
   const copyToClipboard = async () => {
     if (!dateList) {
       alert('请先生成日期列表')
@@ -169,16 +169,19 @@ function App() {
     const lines = dateList.split('\n').filter(line => line.trim() !== '' && !line.startsWith('FULL_START_DATE:'))
     const displayText = lines.join('\n')
     
-    // 构造HTML格式的表格数据
-    let htmlTable = '<table>'
-    lines.forEach(line => {
-      htmlTable += `<tr><td>${line}</td></tr>`
-    })
-    htmlTable += '</table>'
+    // 构造HTML格式的表格数据，添加样式以便在Excel中更好地显示
+    const htmlTable = `
+      <table style="font-family: 微软雅黑; font-size: 10pt; text-align: center;">
+        <tbody>
+          ${lines.map(line => `<tr><td style="text-align: center; padding: 2px 0; border: 1px solid #ddd;">${line}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    `
     
     try {
-      // 使用Clipboard API同时提供多种格式
+      // 检查是否支持Clipboard API
       if (navigator.clipboard && navigator.clipboard.write) {
+        // 使用Clipboard API同时提供多种格式
         const clipboardData = [
           new ClipboardItem({
             'text/plain': new Blob([displayText], { type: 'text/plain' }),
@@ -186,15 +189,42 @@ function App() {
           })
         ]
         await navigator.clipboard.write(clipboardData)
-        alert('已复制到剪贴板（支持Excel格式）')
-      } else {
-        // 降级到普通文本复制
+        alert('已复制到剪贴板，粘贴到Excel中将保持表格格式和样式')
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        // 降级到普通文本复制（支持基础Clipboard API）
         await navigator.clipboard.writeText(displayText)
-        alert('已复制到剪贴板（纯文本）')
+        alert('已复制到剪贴板（纯文本格式）')
+      } else {
+        // 使用传统方法作为最后的备选方案
+        const textArea = document.createElement("textarea")
+        textArea.value = displayText
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand("copy")
+        document.body.removeChild(textArea)
+        alert('已复制到剪贴板（兼容模式）')
       }
     } catch (err) {
       console.error('复制失败:', err)
-      alert('复制失败，请手动复制')
+      
+      // 尝试使用传统方法作为备选方案
+      try {
+        const textArea = document.createElement("textarea")
+        textArea.value = displayText
+        document.body.appendChild(textArea)
+        textArea.select()
+        const successful = document.execCommand("copy")
+        document.body.removeChild(textArea)
+        
+        if (successful) {
+          alert('已复制到剪贴板（兼容模式）')
+        } else {
+          throw new Error('传统复制方法也失败了')
+        }
+      } catch (fallbackErr) {
+        console.error('备选复制方法也失败了:', fallbackErr)
+        alert('复制失败，请手动复制以下内容：\n\n' + displayText)
+      }
     }
   }
 
