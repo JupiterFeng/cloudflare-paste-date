@@ -159,7 +159,7 @@ function App() {
   }
 
   // 复制到剪贴板
-  const copyToClipboard = () => {
+  const copyToClipboard = async () => {
     if (!dateList) {
       alert('请先生成日期列表')
       return
@@ -169,14 +169,33 @@ function App() {
     const lines = dateList.split('\n').filter(line => line.trim() !== '' && !line.startsWith('FULL_START_DATE:'))
     const displayText = lines.join('\n')
     
-    navigator.clipboard.writeText(displayText)
-      .then(() => {
-        alert('已复制到剪贴板')
-      })
-      .catch(err => {
-        console.error('复制失败:', err)
-        alert('复制失败，请手动复制')
-      })
+    // 构造HTML格式的表格数据
+    let htmlTable = '<table>'
+    lines.forEach(line => {
+      htmlTable += `<tr><td>${line}</td></tr>`
+    })
+    htmlTable += '</table>'
+    
+    try {
+      // 使用Clipboard API同时提供多种格式
+      if (navigator.clipboard && navigator.clipboard.write) {
+        const clipboardData = [
+          new ClipboardItem({
+            'text/plain': new Blob([displayText], { type: 'text/plain' }),
+            'text/html': new Blob([htmlTable], { type: 'text/html' })
+          })
+        ]
+        await navigator.clipboard.write(clipboardData)
+        alert('已复制到剪贴板（支持Excel格式）')
+      } else {
+        // 降级到普通文本复制
+        await navigator.clipboard.writeText(displayText)
+        alert('已复制到剪贴板（纯文本）')
+      }
+    } catch (err) {
+      console.error('复制失败:', err)
+      alert('复制失败，请手动复制')
+    }
   }
 
   return (
@@ -236,8 +255,6 @@ function App() {
               backgroundColor: '#f5f5f5', 
               padding: '10px', 
               borderRadius: '4px',
-              fontFamily: 'monospace',
-              fontSize: '14px',
               userSelect: 'text',
               cursor: 'text'
             }}
@@ -257,20 +274,34 @@ function App() {
               </div>
             )}
             
-            {/* 可复制的日期列表 */}
-            <div>
-              {dateList.split('\n').filter(line => line.trim() !== '' && !line.startsWith('FULL_START_DATE:')).map((line, index) => (
-                <div 
-                  key={index} 
-                  style={{ 
-                    padding: '2px 0',
-                    userSelect: 'text'
-                  }}
-                >
-                  {line}
-                </div>
-              ))}
-            </div>
+            {/* 可复制的日期列表 - 表格形式 */}
+            <table 
+              style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                fontFamily: '微软雅黑',
+                fontSize: '10pt',
+                textAlign: 'center',
+                tableLayout: 'fixed'
+              }}
+            >
+              <tbody>
+                {dateList.split('\n').filter(line => line.trim() !== '' && !line.startsWith('FULL_START_DATE:')).map((line, index) => (
+                  <tr key={index}>
+                    <td 
+                      style={{ 
+                        padding: '2px 0',
+                        userSelect: 'text',
+                        textAlign: 'center',
+                        border: '1px solid #ddd'
+                      }}
+                    >
+                      {line}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
